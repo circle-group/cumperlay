@@ -1,0 +1,251 @@
+name: "isic-swin-silv2-inpd-multreg-enp"
+tag: "isic2018" 
+exp_root_dir: "outputs"
+seed: 0
+
+data_type: "isic2018-datamodule"
+data:
+  dataroot: /data2/data/ISIC2018/task3
+  
+  image_size: 224
+
+  batch_size: 16
+  workers: 4
+
+  augment_extra: False
+
+variables:
+  filt_rows: 8 # 16
+  filt:
+    combine_method: disable
+    n_thresholds: 16 # 32
+  thresholding:
+    sigmoid: true
+    min_max_normalize: true
+  pers:
+    n_samples: 128
+    dim: 2
+
+    mult: ${mul:${variables.pers.n_samples},${variables.pers.dim}}
+
+    repr_type: silhouette-v2-representation
+    repr:
+      weight_power: 1.0
+      weight_learnable:  True
+
+      n_samples: ${variables.pers.n_samples}
+
+      n_rows: ${variables.filt_rows}
+      n_dim: ${variables.pers.dim}
+  inp_filt:
+    rows: 8
+    n_thresholds: 16
+
+trainer_type: "classification-trainer"
+trainer:
+  task: multiclass
+  num_classes: 7
+
+  model_type: "pers-vis-net-classifier"
+  model:
+    network_type: network-lmp-swin-v2
+    network:
+      model: "swin-v2-b"
+      pretrained: true
+
+      in_ch: 3
+      out_ch: ${trainer.num_classes}
+
+      topo_ch: 256
+
+      gate_bias: true
+
+      filtration_args:
+        - type: bifiltration-combined
+          config:
+            combine_method: ${variables.filt.combine_method}
+
+            n_thresholds: ${variables.filt.n_thresholds}
+
+            thresholding_type: stair-combined-thresholding
+            thresholding:
+              sigmoid: ${variables.thresholding.sigmoid}
+              n_thresholds: ${variables.filt.n_thresholds}
+              min_max_normalize: ${variables.thresholding.min_max_normalize}
+        - type: bifiltration-combined
+          config:
+            combine_method: ${variables.filt.combine_method}
+
+            n_thresholds: ${variables.filt.n_thresholds}
+
+            thresholding_type: stair-combined-thresholding
+            thresholding:
+              sigmoid: ${variables.thresholding.sigmoid}
+              n_thresholds: ${variables.filt.n_thresholds}
+              min_max_normalize: ${variables.thresholding.min_max_normalize}
+        - type: bifiltration-combined
+          config:
+            combine_method: ${variables.filt.combine_method}
+
+            n_thresholds: ${variables.filt.n_thresholds}
+
+            thresholding_type: stair-combined-thresholding
+            thresholding:
+              sigmoid: ${variables.thresholding.sigmoid}
+              n_thresholds: ${variables.filt.n_thresholds}
+              min_max_normalize: ${variables.thresholding.min_max_normalize}
+        - type: bifiltration-combined
+          config:
+            combine_method: ${variables.filt.combine_method}
+
+            n_thresholds: ${variables.filt.n_thresholds}
+
+            thresholding_type: stair-combined-thresholding
+            thresholding:
+              sigmoid: ${variables.thresholding.sigmoid}
+              n_thresholds: ${variables.filt.n_thresholds}
+              min_max_normalize: ${variables.thresholding.min_max_normalize}
+      persistence_args:
+        - type: persistence-cubical-torch
+          config:
+            dim: ${variables.pers.dim}
+
+            representation_type: ${variables.pers.repr_type}
+            representation: ${variables.pers.repr}
+            
+            threshold: 100
+        - type: persistence-cubical-torch
+          config:
+            dim: ${variables.pers.dim}
+
+            representation_type: ${variables.pers.repr_type}
+            representation: ${variables.pers.repr}
+            
+            threshold: 100
+        - type: persistence-cubical-torch
+          config:
+            dim: ${variables.pers.dim}
+
+            representation_type: ${variables.pers.repr_type}
+            representation: ${variables.pers.repr}
+            
+            threshold: 100
+        - type: persistence-cubical-torch
+          config:
+            dim: ${variables.pers.dim}
+
+            representation_type: ${variables.pers.repr_type}
+            representation: ${variables.pers.repr}
+            
+            threshold: 100
+
+      filt_rows: 
+        - ${variables.filt_rows}
+        - ${variables.filt_rows}
+        - ${variables.filt_rows}
+        - ${variables.filt_rows}
+      pers_chs:
+        - ${mul:${variables.pers.mult},${trainer.model.network.filt_rows[0]}}
+        - ${mul:${variables.pers.mult},${trainer.model.network.filt_rows[1]}}
+        - ${mul:${variables.pers.mult},${trainer.model.network.filt_rows[2]}}
+        - ${mul:${variables.pers.mult},${trainer.model.network.filt_rows[3]}}
+
+      input_guidance: True
+      input_non_learned: false
+      input_no_grad_filt: false
+      input_direct: true
+
+      input_filtration_type: bifiltration-combined
+      input_filtration: 
+        combine_method: ${variables.filt.combine_method}
+        n_thresholds: ${variables.inp_filt.n_thresholds}
+
+        thresholding_type: stair-combined-thresholding
+        thresholding:
+          sigmoid: ${variables.thresholding.sigmoid}
+          n_thresholds: ${variables.inp_filt.n_thresholds}
+          min_max_normalize: ${variables.thresholding.min_max_normalize}
+      input_persistence_type: persistence-cubical-torch
+      input_persistence:
+        dim: ${variables.pers.dim}
+
+        representation_type: ${variables.pers.repr_type}
+        representation: ${variables.pers.repr}
+        
+        threshold: 100
+      input_filt_rows: ${variables.inp_filt.rows}
+      input_pers_chs: ${mul:${variables.pers.mult},${trainer.model.network.input_filt_rows}}
+
+      no_deconv: True
+
+      grad_detach: True
+
+  topo_pred: true
+  multifilt_reg_loss: true
+  multifilt_reg_feats: false
+  multifilt_reg_clamped: true
+  multifilt_reg_sg_next: false
+  multifilt_reg_sg_curr: false
+
+  cfn_entropy: True
+  cfn_patch_size: 16
+  cfn_img_size: 112
+  cfn_patch_size_input: 32
+  cfn_img_size_input: 224
+  cfn_entropy_feats: true
+
+  input_non_learned: false
+  input_direct: true
+
+  loss:
+    lambda_ce: 1.0
+    lambda_topo_ce: 0.25
+    lambda_minimal_filt: 0.0
+    lambda_maximal_filt: 0.0
+    lambda_cfn_entropy: -0.0001 # -0.0005 # 0.1
+    lambda_multifilt_reg: 0.01 # 0.05
+
+  optimizer:
+    name: AdamW
+    args:
+      lr: 0.0001
+      weight_decay: 0.01
+
+  # scheduler:
+  #   name: PolynomialLR
+  #   interval: epoch
+  #   args:
+  #     power: 0.9
+  #     total_iters: ${pl_trainer.max_epochs}
+
+  # scheduler:
+  #   name: CosineWarmup
+  #   interval: step
+  #   args:
+  #     warmup_epochs: 10
+
+  visualize: false
+  vis_swin: true
+  vis_swin_train: true
+  vis_swin_steps: 4
+  vis_swin_targets: 4
+  visualize_using_comp_filt_F: ${variables.filt.n_thresholds}
+
+pl_trainer:
+  max_epochs: 50
+  log_every_n_steps: 4
+  enable_progress_bar: true
+  precision: 32
+  benchmark: true # cudnn_benchmark
+  # detect_anomaly: true
+
+checkpoint:
+  save_last: true
+  save_top_k: 2
+  monitor: "val/roc_auc"
+  mode: "max"
+  filename: "epoch={epoch}-val_roc_auc={val/roc_auc}-val_accuracy={val/accuracy}-val_topo_roc={val/topo_roc_auc}"
+  auto_insert_metric_name: false
+
+test_best_val: true
+test_final: true

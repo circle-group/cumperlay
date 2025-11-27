@@ -1,0 +1,2 @@
+python train.py --config config/isic-swin-silv2-inpd-multreg-enp.yaml --train --gpu 0
+Namespace(config='config/isic-swin-silv2-inpd-multreg-enp.yaml', gpu='4', train=True, validate=False, test=False, export=False, gradio=False, verbose=False, typecheck=False)
